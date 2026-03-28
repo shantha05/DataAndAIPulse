@@ -28,6 +28,46 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
+
+def configure_logging(level: int = logging.INFO) -> None:
+    """Configure the root logger with a console handler and a rotating file handler.
+
+    Log file: logs/app.log (next to this file), rotated at 5 MB, 5 backups kept.
+    Safe to call multiple times — installs handlers only once.
+    Call this once at application startup (app.py / AIChat.py).
+    Token usage lines are written here automatically via agents_sk logger.
+    """
+    from logging.handlers import RotatingFileHandler
+
+    root = logging.getLogger()
+    if root.handlers:
+        return  # already configured
+
+    fmt = logging.Formatter(
+        "%(asctime)s  %(levelname)-8s  %(name)s — %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+
+    # Console handler
+    console_handler = logging.StreamHandler()
+    console_handler.setFormatter(fmt)
+    root.addHandler(console_handler)
+
+    # Rotating file handler — logs/app.log
+    log_dir = Path(__file__).parent / "logs"
+    log_dir.mkdir(exist_ok=True)
+    file_handler = RotatingFileHandler(
+        log_dir / "app.log",
+        maxBytes=5 * 1024 * 1024,  # 5 MB
+        backupCount=5,
+        encoding="utf-8",
+    )
+    file_handler.setFormatter(fmt)
+    root.addHandler(file_handler)
+
+    root.setLevel(level)
+
+
 # ---------------------------------------------------------------------------
 # Config file — single source of truth for agents, settings, and app display
 # ---------------------------------------------------------------------------
@@ -40,8 +80,11 @@ def _load_raw_config() -> dict:
     if _CONFIG_FILE.exists():
         try:
             with open(_CONFIG_FILE, "r", encoding="utf-8") as fh:
-                return json.load(fh)
-        except Exception:
+                cfg = json.load(fh)
+            logger.debug("Loaded config from %s", _CONFIG_FILE)
+            return cfg
+        except Exception as exc:
+            logger.error("Failed to load config from %s: %s", _CONFIG_FILE, exc)
             return {}
     return {}
 
@@ -50,6 +93,7 @@ def save_config(config: dict) -> None:
     """Write the config dict to agents_config.json."""
     with open(_CONFIG_FILE, "w", encoding="utf-8") as fh:
         json.dump(config, fh, indent=2, ensure_ascii=False)
+    logger.info("Config saved to %s", _CONFIG_FILE)
 
 # ---------------------------------------------------------------------------
 # Data models
@@ -250,6 +294,7 @@ class NewsAgent:
     def fetch(self, timeout: int = 20) -> FetchResult:
         """Fetch and parse all agent URLs, merging and deduplicating results."""
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        logger.info("Agent [%s] fetching %d URL(s)", self.name, len(self.urls))
 
         # Fast path: single URL — original behaviour
         if len(self.urls) == 1:
@@ -343,6 +388,10 @@ class NewsAgent:
                 else self._parse_article(soup, resolved_url, resp.text)
             )
 
+            logger.debug(
+                "Agent [%s] URL [%s] → %d item(s) (listing=%s)",
+                self.name, url, len(items), is_listing,
+            )
             return FetchResult(
                 agent_name=self.name, agent_icon=self.icon,
                 agent_color=self.color, category=self.category,

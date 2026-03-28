@@ -6,6 +6,7 @@ questions about the latest Microsoft Data & AI news, grounded in live content
 fetched from the agent fleet in real time.
 """
 
+import logging
 import os
 import sys
 from pathlib import Path
@@ -13,6 +14,10 @@ from pathlib import Path
 import streamlit as st
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
+
+from agents import configure_logging
+configure_logging()
+logger = logging.getLogger(__name__)
 
 st.set_page_config(
     page_title="AI Chat — Data and AI Pulse",
@@ -102,7 +107,9 @@ if "sk_agent" not in st.session_state:
 if "sk_thread" not in st.session_state:
     st.session_state.sk_thread = None
 if "chat_messages" not in st.session_state:
-    st.session_state.chat_messages = []      # [{"role": "user"|"assistant", "content": str}]
+    st.session_state.chat_messages = []      # [{"role": "user"|"assistant", "content": str, "token_usage": dict}]
+if "token_totals" not in st.session_state:
+    st.session_state.token_totals = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
 
 # ---------------------------------------------------------------------------
 # Initialise the SK agent once per session
@@ -149,6 +156,7 @@ with st.sidebar:
         from agents_sk import new_thread
         st.session_state.sk_thread     = new_thread()
         st.session_state.chat_messages = []
+        st.session_state.token_totals  = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
         st.rerun()
 
     st.markdown("---")
@@ -177,6 +185,17 @@ with st.sidebar:
         "☁️ Azure OpenAI / OpenAI"
     )
 
+    # ── Session token usage ───────────────────────────────────────────
+    _t = st.session_state.token_totals
+    if _t["total_tokens"] > 0:
+        st.markdown("---")
+        st.markdown("**Session token usage**")
+        st.caption(
+            f"Prompt: &nbsp;&nbsp;&nbsp;&nbsp;**{_t['prompt_tokens']:,}**  \n"
+            f"Completion: **{_t['completion_tokens']:,}**  \n"
+            f"Total: &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;**{_t['total_tokens']:,}**"
+        )
+
 # ---------------------------------------------------------------------------
 # Replay previous messages
 # ---------------------------------------------------------------------------
@@ -184,6 +203,13 @@ with st.sidebar:
 for _msg in st.session_state.chat_messages:
     with st.chat_message(_msg["role"]):
         st.markdown(_msg["content"])
+        _u = _msg.get("token_usage", {})
+        if _msg["role"] == "assistant" and _u.get("total_tokens"):
+            st.caption(
+                f"🔢 {_u['prompt_tokens']:,} prompt · "
+                f"{_u['completion_tokens']:,} completion · "
+                f"**{_u['total_tokens']:,} total**"
+            )
 
 # ---------------------------------------------------------------------------
 # Chat input  (sidebar suggestion acts as prefill)
@@ -201,6 +227,7 @@ if prompt:
     # ── Stream agent response ────────────────────────────────────────────
     from agents_sk import stream_agent
 
+    _usage: dict = {}
     with st.chat_message("assistant"):
         try:
             response_text = st.write_stream(
@@ -208,12 +235,26 @@ if prompt:
                     st.session_state.sk_agent,
                     prompt,
                     st.session_state.sk_thread,
+                    usage_out=_usage,
                 )
             )
         except Exception as exc:
+            logger.error("Failed to stream agent response: %s", exc, exc_info=True)
             response_text = f"⚠️ **Error generating response:**\n\n```\n{exc}\n```"
             st.error(response_text)
 
+        # Display per-response token breakdown
+        if _usage.get("total_tokens"):
+            st.caption(
+                f"🔢 {_usage['prompt_tokens']:,} prompt · "
+                f"{_usage['completion_tokens']:,} completion · "
+                f"**{_usage['total_tokens']:,} total**"
+            )
+
+    # Accumulate session totals
+    for _k in ("prompt_tokens", "completion_tokens", "total_tokens"):
+        st.session_state.token_totals[_k] += _usage.get(_k, 0)
+
     st.session_state.chat_messages.append(
-        {"role": "assistant", "content": response_text or ""}
+        {"role": "assistant", "content": response_text or "", "token_usage": _usage}
     )

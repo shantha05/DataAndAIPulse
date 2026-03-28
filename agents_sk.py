@@ -11,6 +11,7 @@ Requires:
 
 import asyncio
 import json
+import logging
 import os
 import queue as _queue
 import threading as _threading
@@ -20,6 +21,8 @@ from typing import TYPE_CHECKING, Annotated, List, Optional
 from dotenv import load_dotenv
 
 load_dotenv()
+
+logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Graceful import — the decorator must exist at class-definition time,
@@ -198,7 +201,8 @@ class NewsPlugin:
                 a = futures[future]
                 try:
                     result = future.result()
-                except Exception:
+                except Exception as exc:
+                    logger.warning("Agent [%s] fetch failed during search: %s", a.name, exc)
                     continue
                 if not result.ok:
                     continue
@@ -258,12 +262,15 @@ def create_agent() -> "ChatCompletionAgent":
     """Create and return a Semantic Kernel ChatCompletionAgent backed by NewsPlugin."""
     from semantic_kernel.agents import ChatCompletionAgent
 
-    return ChatCompletionAgent(
+    logger.info("Creating ChatCompletionAgent (DataAIPulseAssistant)…")
+    agent = ChatCompletionAgent(
         service=_build_ai_service(),
         name="DataAIPulseAssistant",
         instructions=_SYSTEM_PROMPT,
         plugins=[NewsPlugin()],
     )
+    logger.info("ChatCompletionAgent created successfully")
+    return agent
 
 
 def new_thread() -> "ChatHistoryAgentThread":
@@ -299,24 +306,49 @@ def stream_agent(
     agent: "ChatCompletionAgent",
     question: str,
     thread: "ChatHistoryAgentThread",
+    usage_out: Optional[dict] = None,
 ):
     """
     Synchronous streaming generator — yields text chunks as they arrive.
     Designed for use with ``st.write_stream()``.
     The thread object maintains full conversation history across calls.
+
+    If *usage_out* is provided (a plain dict), it will be populated with
+    ``prompt_tokens``, ``completion_tokens``, and ``total_tokens`` once the
+    stream completes, making the data available to the caller for display.
     """
     chunk_q: _queue.Queue = _queue.Queue()
+    usage_q: _queue.Queue = _queue.Queue()
 
     async def _stream() -> None:
+        prompt_tokens = 0
+        completion_tokens = 0
         try:
             async for chunk in agent.invoke_stream(messages=question, thread=thread):
                 # chunk is AgentResponseItem[StreamingChatMessageContent]
                 text = getattr(chunk.message, "content", None) or ""
                 if text:
                     chunk_q.put(text)
+                # Extract token-usage metadata (usually present in the last chunk)
+                metadata = getattr(chunk.message, "metadata", {}) or {}
+                usage = metadata.get("usage")
+                if usage is None:
+                    # Fallback: inspect the raw inner_content from the OpenAI client
+                    inner = getattr(chunk.message, "inner_content", None)
+                    if inner:
+                        usage = getattr(inner, "usage", None)
+                if usage:
+                    prompt_tokens = int(getattr(usage, "prompt_tokens", 0) or 0)
+                    completion_tokens = int(getattr(usage, "completion_tokens", 0) or 0)
         except Exception as exc:
+            logger.error("Stream error for agent %r: %s", agent.name, exc, exc_info=True)
             chunk_q.put(f"\n\n⚠️ Stream error: {exc}")
         finally:
+            usage_q.put({
+                "prompt_tokens": prompt_tokens,
+                "completion_tokens": completion_tokens,
+                "total_tokens": prompt_tokens + completion_tokens,
+            })
             chunk_q.put(None)  # sentinel
 
     bg = _threading.Thread(target=lambda: asyncio.run(_stream()), daemon=True)
@@ -327,5 +359,18 @@ def stream_agent(
         if piece is None:
             break
         yield piece
+
+    # Populate usage_out after the stream is fully consumed
+    if usage_out is not None:
+        try:
+            usage = usage_q.get_nowait()
+            usage_out.update(usage)
+            if usage["total_tokens"] > 0:
+                logger.info(
+                    "Token usage — prompt: %d, completion: %d, total: %d",
+                    usage["prompt_tokens"], usage["completion_tokens"], usage["total_tokens"],
+                )
+        except _queue.Empty:
+            pass
 
     bg.join()

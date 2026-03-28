@@ -23,6 +23,7 @@ from agents import (
     NewsAgent,
     NewsItem,
     _parse_item_date,
+    configure_logging,
     get_active_agents,
     get_active_categories,
 )
@@ -56,6 +57,7 @@ _APP_LOGO      = _APP.get("logo_url",  "")
 _APP_COPYRIGHT = _APP.get("copyright", "© 2026 Pearl Innovations Limited. All rights reserved.")
 
 load_dotenv()
+configure_logging()
 
 # ---------------------------------------------------------------------------
 # Page configuration  (MUST be the very first Streamlit call)
