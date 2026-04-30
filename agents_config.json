@@ -25,7 +25,7 @@
       "urls": [
         "https://blog.fabric.microsoft.com/en-us/blog/category/databases"
       ],
-      "category": "Database",
+      "category": "Microsoft Fabric",
       "description": "SQL databases, Fabric Database Hub, Cosmos DB, SQL Server 2025",
       "icon": "🗄️",
       "color": "#0078D4"
@@ -40,7 +40,7 @@
         "https://blog.fabric.microsoft.com/en-us/blog/category/apacheiceberg",
         "https://blog.fabric.microsoft.com/en-us/blog/category/fabric-workload"
       ],
-      "category": "Platform",
+      "category": "Microsoft Fabric",
       "description": "OneLake, Admin experiences, MCP, Git integration, security & governance",
       "icon": "⚙️",
       "color": "#5C2D91"
@@ -50,7 +50,7 @@
       "urls": [
         "https://blog.fabric.microsoft.com/en-us/blog/category/data-factory"
       ],
-      "category": "Data Factory",
+      "category": "Microsoft Fabric",
       "description": "Data pipelines, dataflows, ETL orchestration, Synapse migration",
       "icon": "🔄",
       "color": "#00B294"
@@ -65,7 +65,7 @@
         "https://blog.fabric.microsoft.com/en-us/blog/category/semantic-model",
         "https://blog.fabric.microsoft.com/en-us/blog/category/data-science"
       ],
-      "category": "Analytics",
+      "category": "Microsoft Fabric",
       "description": "Data warehousing, lakehouse, Apache Spark, notebooks",
       "icon": "📊",
       "color": "#E74C3C"
@@ -76,20 +76,72 @@
         "https://blog.fabric.microsoft.com/en-us/blog/category/real-time-intelligence",
         "https://blog.fabric.microsoft.com/en-us/blog/category/activator"
       ],
-      "category": "Real-Time",
+      "category": "Microsoft Fabric",
       "description": "Eventhouse, KQL database, real-time analytics, Activator alerts",
       "icon": "⚡",
       "color": "#F39C12"
+    },
+    {
+      "name": "Fabric Roadmap",
+      "urls": [
+        "https://blog.fabric.microsoft.com/en-us/blog/category/roadmap"
+      ],
+      "category": "Microsoft Fabric",
+      "description": "Microsoft Fabric upcoming features, release plans, and roadmap updates",
+      "icon": "🗺️",
+      "color": "#1E8449"
     },
     {
       "name": "Fabric IQ",
       "urls": [
         "https://blog.fabric.microsoft.com/en-us/blog/category/fabric-iq"
       ],
-      "category": "Fabric IQ",
+      "category": "AI & Copilot",
       "description": "AI copilot capabilities and intelligent automation in Fabric",
       "icon": "🤖",
       "color": "#9B59B6"
+    },
+    {
+      "name": "Planning in Fabric IQ",
+      "urls": [
+        "https://aka.ms/FabCon-SQLCon-2026-Planning"
+      ],
+      "category": "AI & Copilot",
+      "description": "Planning, forecasting, and what-if analysis in Fabric IQ",
+      "icon": "📅",
+      "color": "#7B68EE"
+    },
+    {
+      "name": "Fabric AI",
+      "urls": [
+        "https://blog.fabric.microsoft.com/en-us/blog/category/ai",
+        "https://blog.fabric.microsoft.com/en-us/blog/category/fabric-ml",
+        "https://blog.fabric.microsoft.com/en-us/blog/category/machine-learning"
+      ],
+      "category": "AI & Copilot",
+      "description": "AI models, AI agents, ML capabilities in Microsoft Fabric",
+      "icon": "🧠",
+      "color": "#00BCF2"
+    },
+    {
+      "name": "Azure AI Foundry",
+      "urls": [
+        "https://devblogs.microsoft.com/foundry/"
+      ],
+      "category": "AI & Copilot",
+      "description": "Azure AI Foundry models, agents, tools, and developer updates",
+      "icon": "🔬",
+      "color": "#0078D4"
+    },
+    {
+      "name": "Copilot Studio",
+      "urls": [
+        "https://www.microsoft.com/en-us/microsoft-copilot/blog/search/copilot-studio/"
+      ],
+      "category": "AI & Copilot",
+      "description": "Microsoft Copilot Studio features, announcements, and use cases",
+      "icon": "💬",
+      "color": "#5C2D91"
     },
     {
       "name": "Power BI",
@@ -103,36 +155,14 @@
       "color": "#E8A200"
     },
     {
-      "name": "Planning in Fabric IQ",
+      "name": "Databricks Blog",
       "urls": [
-        "https://aka.ms/FabCon-SQLCon-2026-Planning"
+        "https://www.databricks.com/feed"
       ],
-      "category": "Fabric IQ",
-      "description": "Planning, forecasting, and what-if analysis in Fabric IQ",
-      "icon": "📅",
-      "color": "#7B68EE"
-    },
-    {
-      "name": "Fabric AI",
-      "urls": [
-        "https://blog.fabric.microsoft.com/en-us/blog/category/ai",
-        "https://blog.fabric.microsoft.com/en-us/blog/category/fabric-ml",
-        "https://blog.fabric.microsoft.com/en-us/blog/category/machine-learning"
-      ],
-      "category": "AI",
-      "description": "AI models, AI agents, ML capabilities in Microsoft Fabric",
-      "icon": "🧠",
-      "color": "#00BCF2"
-    },
-    {
-      "name": "Fabric ISV",
-      "urls": [
-        "https://aka.ms/FabCon-SQLCon-2026-Dipti"
-      ],
-      "category": "ISV",
-      "description": "Independent Software Vendor capabilities, Extensibility Toolkit",
-      "icon": "🏢",
-      "color": "#00CC6A"
+      "category": "Databricks",
+      "description": "Databricks platform updates, data engineering, AI, and open-source news",
+      "icon": "🧱",
+      "color": "#FF3621"
     },
     {
       "name": "Technology Gadgets",
@@ -146,34 +176,14 @@
       "color": "#FF6900"
     },
     {
-      "name": "Azure AI Foundry",
+      "name": "Fabric ISV",
       "urls": [
-        "https://devblogs.microsoft.com/foundry/"
+        "https://aka.ms/FabCon-SQLCon-2026-Dipti"
       ],
-      "category": "Azure AI",
-      "description": "Azure AI Foundry models, agents, tools, and developer updates",
-      "icon": "🔬",
-      "color": "#0078D4"
-    },
-    {
-      "name": "Copilot Studio",
-      "urls": [
-        "https://www.microsoft.com/en-us/microsoft-copilot/blog/search/copilot-studio/"
-      ],
-      "category": "Copilot",
-      "description": "Microsoft Copilot Studio features, announcements, and use cases",
-      "icon": "💬",
-      "color": "#5C2D91"
-    },
-    {
-      "name": "Fabric Roadmap",
-      "urls": [
-        "https://blog.fabric.microsoft.com/en-us/blog/category/roadmap"
-      ],
-      "category": "Roadmap",
-      "description": "Microsoft Fabric upcoming features, release plans, and roadmap updates",
-      "icon": "🗺️",
-      "color": "#1E8449"
+      "category": "Tech News",
+      "description": "Independent Software Vendor capabilities, Extensibility Toolkit",
+      "icon": "🏢",
+      "color": "#00CC6A"
     }
   ],
   "disabled_agents": [],

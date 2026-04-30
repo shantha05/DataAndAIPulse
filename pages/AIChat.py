@@ -32,6 +32,36 @@ st.set_page_config(
 st.markdown(
     """
 <style>
+/* ── Background ─────────────────────────────────────────────────── */
+[data-testid="stAppViewContainer"] > .main {
+    background: var(--background-color, #f0f2f7);
+}
+
+/* ── Sidebar ────────────────────────────────────────────────────── */
+[data-testid="stSidebar"] {background: #12172b !important;}
+[data-testid="stSidebar"] label,
+[data-testid="stSidebar"] p,
+[data-testid="stSidebar"] span,
+[data-testid="stSidebar"] div  {color: #d4d8ec !important;}
+[data-testid="stSidebar"] h1,
+[data-testid="stSidebar"] h2,
+[data-testid="stSidebar"] h3   {color: #ffffff !important;}
+[data-testid="stSidebar"] .stButton button {
+    background: #E63946; color: white; border: none;
+    border-radius: 8px; font-weight: 600;
+}
+[data-testid="stSidebar"] .stButton button:hover {background: #c9303c;}
+
+/* ── Top header bar ─────────────────────────────────────────────── */
+.header-bar {
+    display: flex; align-items: center; gap: 14px;
+    background: linear-gradient(135deg, #0f1320 0%, #1c2040 60%, #3d1022 100%);
+    color: white; padding: 14px 24px; border-radius: 14px;
+    margin-bottom: 10px; box-shadow: 0 4px 18px rgba(0,0,0,0.4);
+}
+.header-title {font-size:1.5rem; font-weight:800; margin:0; color:white !important; flex:1;}
+.header-sub   {font-size:0.82rem; opacity:0.9; color:white !important; margin-top:2px;}
+
 /* Tighten chat bubbles */
 .stChatMessage { padding: 10px 14px !important; }
 /* Suggestion buttons in sidebar */
@@ -67,13 +97,14 @@ def _credentials_present() -> bool:
     )
 
 
-st.markdown("## 🤖 Data and AI Pulse — AI Chat")
-st.caption(
-    "Ask me anything about Microsoft Fabric, Azure AI Foundry, Power BI, "
-    "Copilot Studio, Real-Time Intelligence, and more. "
-    "I fetch **live news** to ground every answer."
+st.html(
+    """<div class="header-bar">
+        <div style="flex:1;">
+            <div class="header-title">🤖 Data and AI Pulse — AI Chat</div>
+            <div class="header-sub">Ask me anything about Microsoft Fabric, Azure AI Foundry, Power BI, Copilot Studio, Real-Time Intelligence, and more. I fetch live news to ground every answer.</div>
+        </div>
+    </div>"""
 )
-st.markdown("---")
 
 if not _sk_installed():
     st.error(

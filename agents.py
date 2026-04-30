@@ -10,6 +10,7 @@ Each NewsAgent is responsible for:
 import json
 import logging
 import re
+import xml.etree.ElementTree as _ET
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
@@ -364,6 +365,90 @@ class NewsAgent:
             source_urls=list(self.urls),
         )
 
+    def _parse_rss(self, text: str, base_url: str) -> List[NewsItem]:
+        """Parse an RSS/Atom feed and return a list of NewsItems."""
+        cutoff = datetime.now(tz=timezone.utc) - timedelta(days=_CUTOFF_DAYS)
+        items: List[NewsItem] = []
+        try:
+            root = _ET.fromstring(text)
+        except _ET.ParseError:
+            return items
+
+        # Strip namespace prefixes for Atom feeds
+        ns_strip = re.compile(r"\{[^}]*\}")
+
+        # RSS 2.0: <channel><item>...
+        # Atom:   <feed><entry>...
+        entries = root.findall(".//item") or root.findall(".//entry")
+        for entry in entries:
+            def _txt(tag: str) -> str:
+                el = entry.find(tag)
+                if el is None:
+                    # Try stripping namespace
+                    for child in entry:
+                        if ns_strip.sub("", child.tag) == tag:
+                            return (child.text or "").strip()
+                    return ""
+                return (el.text or "").strip()
+
+            title = _txt("title")
+            if not title:
+                continue
+
+            # URL: <link> in RSS, <link href="..."> in Atom
+            link_el = entry.find("link")
+            if link_el is not None:
+                url = link_el.get("href") or (link_el.text or "").strip()
+            else:
+                url = ""
+            if not url:
+                url = _txt("guid")
+            if not url:
+                continue
+            if not url.startswith("http"):
+                url = urljoin(base_url, url)
+
+            pub_date = _txt("pubDate") or _txt("published") or _txt("updated") or _txt("dc:date")
+            # dc:date has a namespace — try explicit search
+            if not pub_date:
+                for child in entry:
+                    if ns_strip.sub("", child.tag) in ("date", "pubDate", "published", "updated"):
+                        pub_date = (child.text or "").strip()
+                        break
+
+            if pub_date and not _is_recent(pub_date, cutoff):
+                continue
+
+            excerpt = _txt("description") or _txt("summary") or _txt("content")
+            # Strip any embedded HTML tags from excerpt
+            excerpt = re.sub(r"<[^>]+>", " ", excerpt).strip()
+            excerpt = re.sub(r"\s{2,}", " ", excerpt)[:500]
+
+            author_el = entry.find("author")
+            if author_el is not None:
+                name_el = author_el.find("name")
+                author = (name_el.text if name_el is not None else author_el.text) or ""
+            else:
+                author = _txt("dc:creator")
+                if not author:
+                    for child in entry:
+                        if ns_strip.sub("", child.tag) == "creator":
+                            author = (child.text or "").strip()
+                            break
+
+            items.append(NewsItem(
+                title=title,
+                url=url,
+                excerpt=excerpt.strip(),
+                date=pub_date[:40] if pub_date else "",
+                author=author.strip(),
+                key_points=[],
+            ))
+            if len(items) >= _MAX_ITEMS:
+                break
+
+        return items
+
     def _fetch_single(self, url: str, timestamp: str, timeout: int) -> "FetchResult":
         """Fetch and parse a single URL, returning a FetchResult."""
         try:
@@ -376,6 +461,31 @@ class NewsAgent:
             resp.raise_for_status()
 
             resolved_url = resp.url
+
+            # Detect RSS/Atom feeds by content-type or URL pattern
+            content_type = resp.headers.get("Content-Type", "")
+            is_feed = (
+                "xml" in content_type
+                or "rss" in content_type
+                or "atom" in content_type
+                or re.search(r"/(feed|rss|atom)(/|$)", resolved_url, re.I)
+            )
+            if not is_feed and resp.text.lstrip().startswith("<"):
+                # Peek at the root tag
+                first_tag = re.search(r"<(\w+)", resp.text.lstrip())
+                if first_tag and first_tag.group(1).lower() in ("rss", "feed", "channel"):
+                    is_feed = True
+
+            if is_feed:
+                items = self._parse_rss(resp.text, resolved_url)
+                return FetchResult(
+                    agent_name=self.name, agent_icon=self.icon,
+                    agent_color=self.color, category=self.category,
+                    source_url=url, resolved_url=resolved_url,
+                    items=items, is_listing_page=True,
+                    fetch_timestamp=timestamp, source_urls=[url],
+                )
+
             try:
                 soup = BeautifulSoup(resp.text, "lxml")
             except Exception:

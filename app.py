@@ -148,7 +148,7 @@ st.markdown(
 .card-icon {font-size: 1.7rem; line-height: 1; flex-shrink: 0;}
 .card-meta  {flex: 1;}
 .card-name  {font-size: 0.98rem; font-weight: 800; color: var(--text-color, #111); margin: 0;}
-.card-desc  {font-size: 0.73rem; color: var(--text-color, #999); opacity: 0.6; margin-top: 2px;}
+.card-desc  {font-size: 0.73rem; color: var(--text-color, #111); margin-top: 2px;}
 .badge {
     display: inline-block; border-radius: 10px; padding: 2px 8px;
     font-size: 0.68rem; font-weight: 800; color: white;
@@ -158,7 +158,7 @@ st.markdown(
     font-size: 0.72rem; font-weight: 700;
     background: rgba(128,128,128,0.1);
     border-radius: 10px; padding: 3px 9px;
-    color: var(--text-color, #555); opacity: 0.85;
+    color: var(--text-color, #111);
 }
 
 /* ── Article entries ────────────────────────────────────────────── */
@@ -173,10 +173,10 @@ a.entry-title:visited {
     display: block; margin-bottom: 3px;
 }
 .entry-title:hover, a.entry-title:hover {color: #005fa3 !important; text-decoration: underline;}
-.entry-meta    {font-size: 0.71rem; color: var(--text-color, #aaa); opacity: 0.65; margin-bottom: 4px;}
-.entry-excerpt {font-size: 0.82rem; color: var(--text-color, #555); opacity: 0.85; line-height: 1.55; margin-bottom: 5px;}
+.entry-meta    {font-size: 0.71rem; color: var(--text-color, #111); margin-bottom: 4px;}
+.entry-excerpt {font-size: 0.82rem; color: var(--text-color, #111); line-height: 1.55; margin-bottom: 5px;}
 .kp-list {margin: 4px 0 5px; padding-left: 16px;}
-.kp-list li {font-size: 0.77rem; color: var(--text-color, #666); opacity: 0.75; margin-bottom: 2px; line-height: 1.4;}
+.kp-list li {font-size: 0.77rem; color: var(--text-color, #111); margin-bottom: 2px; line-height: 1.4;}
 .read-more {
     font-size: 0.74rem; font-weight: 700;
     color: var(--c, var(--primary-color, #0078D4));
@@ -213,7 +213,7 @@ details.show-more[open] summary::before {transform: rotate(90deg);}
 details.show-more[open] summary {margin-bottom: 6px;}
 
 /* ── Timestamp / footer ─────────────────────────────────────────── */
-.ts {font-size:0.68rem; color:var(--text-color,#ccc); opacity:0.45; text-align:right; margin-top:8px;}
+.ts {font-size:0.68rem; color:var(--text-color,#111); text-align:right; margin-top:8px;}
 </style>
 """,
     unsafe_allow_html=True,
@@ -534,17 +534,25 @@ def main() -> None:
         f'<span class="stat-pill err">⚠️ {errors} error{"s" if errors != 1 else ""}</span>'
         if errors else ""
     )
+    timestamps = [r.fetch_timestamp for r in results.values() if r.fetch_timestamp]
+    last_refreshed = max(timestamps) if timestamps else ""
+    refreshed_html = (
+        f'<div style="font-size:0.72rem;opacity:0.75;margin-top:4px;color:white;">'
+        f'🕐 Last refreshed: {last_refreshed}</div>'
+        if last_refreshed else ""
+    )
     st.html(
-        f"""<div class="header-bar">
-            <div style="flex:1;">
-                <div class="header-title">{_APP_TITLE}</div>
-                <div class="header-sub">{_APP_SUBTITLE}</div>
-            </div>
-            <span class="stat-pill">📡 {len(agents)} agents</span>
-            <span class="stat-pill">✅ {loaded} loaded</span>
-            <span class="stat-pill">📰 {total_articles} articles</span>
-            {error_pill}
-        </div>"""
+        f'<div class="header-bar">'
+        f'<div style="flex:1;">'
+        f'<div class="header-title">{_APP_TITLE}</div>'
+        f'<div class="header-sub">{_APP_SUBTITLE}</div>'
+        f'{refreshed_html}'
+        f'</div>'
+        f'<span class="stat-pill">📡 {len(agents)} agents</span>'
+        f'<span class="stat-pill">✅ {loaded} loaded</span>'
+        f'<span class="stat-pill">📰 {total_articles} articles</span>'
+        f'{error_pill}'
+        f'</div>'
     )
 
     # ── Category tabs ────────────────────────────────────────────────
