@@ -249,15 +249,11 @@ _IGNORE_HEADINGS = {
 }
 
 _REQUEST_HEADERS = {
-    "User-Agent": (
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-        "AppleWebKit/537.36 (KHTML, like Gecko) "
-        "Chrome/122.0.0.0 Safari/537.36"
-    ),
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-    "Accept-Language": "en-US,en;q=0.9",
-    "Accept-Encoding": "gzip, deflate",
+    "User-Agent": "Mozilla/5.0",
 }
+
+_FABRIC_CATEGORY_PREFIX = "https://blog.fabric.microsoft.com/en-us/blog/category/"
+_FABRIC_FALLBACK_FEED = "https://blog.fabric.microsoft.com/en-us/blog/feed/"
 
 
 # ---------------------------------------------------------------------------
@@ -458,6 +454,29 @@ class NewsAgent:
                 timeout=timeout,
                 allow_redirects=True,
             )
+
+            if resp.status_code in (401, 403):
+                # Some sources reject richer browser headers but allow a simple UA.
+                resp = requests.get(
+                    url,
+                    headers={"User-Agent": _REQUEST_HEADERS["User-Agent"]},
+                    timeout=timeout,
+                    allow_redirects=True,
+                )
+
+            if resp.status_code == 404 and url.startswith(_FABRIC_CATEGORY_PREFIX):
+                # Fabric category URLs were retired; fall back to the live Fabric RSS feed.
+                logger.info(
+                    "Agent [%s] URL [%s] returned 404, falling back to %s",
+                    self.name, url, _FABRIC_FALLBACK_FEED,
+                )
+                resp = requests.get(
+                    _FABRIC_FALLBACK_FEED,
+                    headers={"User-Agent": _REQUEST_HEADERS["User-Agent"]},
+                    timeout=timeout,
+                    allow_redirects=True,
+                )
+
             resp.raise_for_status()
 
             resolved_url = resp.url

@@ -97,6 +97,67 @@ def _credentials_present() -> bool:
     )
 
 
+def _health_check_azure_config() -> tuple[bool, str]:
+    """
+    Validate Azure OpenAI configuration and connectivity.
+    Returns (is_ok, message).
+    """
+    from dotenv import load_dotenv
+    import socket
+    from urllib.parse import urlparse
+    
+    load_dotenv()
+    
+    azure_key = os.getenv("AZURE_OPENAI_API_KEY", "").strip()
+    azure_endpoint = os.getenv("AZURE_OPENAI_ENDPOINT", "").strip()
+    azure_deploy = (
+        os.getenv("AZURE_OPENAI_CHAT_DEPLOYMENT_NAME")
+        or os.getenv("AZURE_OPENAI_DEPLOYMENT")
+        or ""
+    ).strip()
+    
+    # If using OpenAI instead, skip Azure checks
+    if not azure_key or not azure_endpoint:
+        return True, ""  # OpenAI path, not an error
+    
+    # Validate endpoint format
+    if not azure_endpoint.startswith(("http://", "https://")):
+        return False, (
+            "❌ **AZURE_OPENAI_ENDPOINT format invalid.** "
+            "Should start with `https://` (e.g., `https://myresource.openai.azure.com/`)"
+        )
+    
+    # Validate deployment name
+    if not azure_deploy:
+        return False, (
+            "❌ **AZURE_OPENAI_CHAT_DEPLOYMENT_NAME is not set.** "
+            "Add your deployment name (e.g., `gpt-4o`, `gpt-4o-mini`) to `.env`."
+        )
+    
+    # Validate DNS resolution
+    parsed = urlparse(azure_endpoint)
+    host = parsed.hostname
+    if not host:
+        return False, (
+            "❌ **AZURE_OPENAI_ENDPOINT is malformed.** "
+            f"Could not extract hostname from `{azure_endpoint}`."
+        )
+    
+    try:
+        socket.getaddrinfo(host, 443)
+    except OSError:
+        return False, (
+            f"❌ **Cannot resolve Azure endpoint hostname:** `{host}`  \n"
+            "**Possible causes:**\n"
+            "- Resource name is incorrect\n"
+            "- No internet or DNS access\n"
+            "- Firewall/proxy blocking Azure\n\n"
+            "**Fix:** Copy the correct endpoint from Azure Portal → Azure OpenAI → Keys + Endpoint."
+        )
+    
+    return True, ""
+
+
 st.html(
     """<div class="header-bar">
         <div style="flex:1;">
@@ -129,6 +190,14 @@ if not _credentials_present():
     )
     st.stop()
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Health check for Azure configuration (non-blocking, informational)
+# ─────────────────────────────────────────────────────────────────────────────
+
+_health_ok, _health_msg = _health_check_azure_config()
+if not _health_ok:
+    st.warning(f"⚠️ **Config issue detected:**\n\n{_health_msg}")
+
 # ---------------------------------------------------------------------------
 # Session-state initialisation
 # ---------------------------------------------------------------------------
@@ -153,9 +222,15 @@ if st.session_state.sk_agent is None:
             st.session_state.sk_agent  = create_agent()
             st.session_state.sk_thread = new_thread()
         except Exception as exc:
+            msg = str(exc)
+            if "Unable to resolve AZURE_OPENAI_ENDPOINT host" in msg:
+                msg += (
+                    "\n\nTip: In Azure AI Foundry or Azure Portal, copy the exact endpoint for your Azure OpenAI resource "
+                    "and paste it into AZURE_OPENAI_ENDPOINT in .env."
+                )
             st.error(
                 f"**Failed to initialise assistant.**\n\n"
-                f"```\n{exc}\n```\n\n"
+                f"```\n{msg}\n```\n\n"
                 "Check your `.env` credentials and that `semantic-kernel` is installed."
             )
             st.stop()

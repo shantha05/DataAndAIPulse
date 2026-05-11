@@ -136,7 +136,7 @@
     {
       "name": "Copilot Studio",
       "urls": [
-        "https://www.microsoft.com/en-us/microsoft-copilot/blog/search/copilot-studio/"
+        "https://learn.microsoft.com/en-us/microsoft-copilot-studio/whats-new"
       ],
       "category": "AI & Copilot",
       "description": "Microsoft Copilot Studio features, announcements, and use cases",
@@ -188,5 +188,15 @@
   ],
   "disabled_agents": [],
   "custom_agents": [],
-  "overrides": {}
+  "overrides": {
+    "Database Announcements": {
+      "category": "Microsoft Fabric",
+      "icon": "🗄️",
+      "color": "#0078D4",
+      "description": "SQL databases, Fabric Database Hub, Cosmos DB, SQL Server 2025",
+      "urls": [
+        "https://community.fabric.microsoft.com/t5/Fabric-Updates-Blogs/bg-p/fbc_fabricupdatesblogs"
+      ]
+    }
+  }
 }

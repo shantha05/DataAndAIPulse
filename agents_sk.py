@@ -14,15 +14,47 @@ import json
 import logging
 import os
 import queue as _queue
+import socket
 import threading as _threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import TYPE_CHECKING, Annotated, List, Optional
+from urllib.parse import urlparse
 
 from dotenv import load_dotenv
 
 load_dotenv()
 
 logger = logging.getLogger(__name__)
+
+
+def _normalize_azure_endpoint(raw_endpoint: str) -> str:
+    """Normalize endpoint formatting so SDK gets a canonical Azure OpenAI URL."""
+    endpoint = (raw_endpoint or "").strip().strip('"').strip("'")
+    if endpoint and not endpoint.startswith(("http://", "https://")):
+        endpoint = f"https://{endpoint}"
+    if endpoint and not endpoint.endswith("/"):
+        endpoint += "/"
+    return endpoint
+
+
+def _validate_endpoint_dns(endpoint: str) -> None:
+    """Raise a helpful error if the endpoint host cannot be resolved."""
+    parsed = urlparse(endpoint)
+    host = parsed.hostname
+    if not host:
+        raise EnvironmentError(
+            "Invalid AZURE_OPENAI_ENDPOINT format. Expected something like "
+            "https://<resource-name>.openai.azure.com/."
+        )
+    try:
+        socket.getaddrinfo(host, 443)
+    except OSError as exc:
+        raise ConnectionError(
+            "Unable to resolve AZURE_OPENAI_ENDPOINT host. "
+            f"Host '{host}' was not found via DNS. "
+            "Update AZURE_OPENAI_ENDPOINT in .env to your real Azure OpenAI resource endpoint "
+            "(example: https://<resource-name>.openai.azure.com/)."
+        ) from exc
 
 # ---------------------------------------------------------------------------
 # Graceful import — the decorator must exist at class-definition time,
@@ -57,7 +89,7 @@ def _build_ai_service():
             "Run:  pip install semantic-kernel>=1.0"
         )
     azure_key      = os.getenv("AZURE_OPENAI_API_KEY")
-    azure_endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
+    azure_endpoint = _normalize_azure_endpoint(os.getenv("AZURE_OPENAI_ENDPOINT", ""))
     # Support both naming conventions used across projects
     azure_deploy   = (
         os.getenv("AZURE_OPENAI_CHAT_DEPLOYMENT_NAME")
@@ -67,6 +99,7 @@ def _build_ai_service():
     openai_key     = os.getenv("OPENAI_API_KEY")
 
     if azure_key and azure_endpoint:
+        _validate_endpoint_dns(azure_endpoint)
         from semantic_kernel.connectors.ai.open_ai import AzureChatCompletion
         return AzureChatCompletion(
             api_key=azure_key,
@@ -342,7 +375,13 @@ def stream_agent(
                     completion_tokens = int(getattr(usage, "completion_tokens", 0) or 0)
         except Exception as exc:
             logger.error("Stream error for agent %r: %s", agent.name, exc, exc_info=True)
-            chunk_q.put(f"\n\n⚠️ Stream error: {exc}")
+            err_text = str(exc)
+            if "APIConnectionError" in repr(exc) or "Connection error" in err_text:
+                err_text = (
+                    "Unable to connect to the configured AI endpoint. "
+                    "Check AZURE_OPENAI_ENDPOINT, network/DNS access, and firewall/proxy settings."
+                )
+            chunk_q.put(f"\n\n⚠️ Stream error: {err_text}")
         finally:
             usage_q.put({
                 "prompt_tokens": prompt_tokens,
